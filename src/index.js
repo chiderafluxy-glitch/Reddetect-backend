@@ -11,13 +11,11 @@ const vaultRoutes = require('./routes/vault');
 
 const app = express();
 
-// CORS - allow frontend origin
 app.use(cors({
   origin: [process.env.FRONTEND_URL, 'http://localhost:3000'],
   credentials: true
 }));
 
-// Body parser - conditional for webhook
 app.use((req, res, next) => {
   if (req.originalUrl === '/api/stripe/webhook') {
     express.raw({ type: 'application/json' })(req, res, next);
@@ -26,10 +24,8 @@ app.use((req, res, next) => {
   }
 });
 
-// Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', app: 'Reddetect API' }));
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/reports', reportsRoutes);
@@ -37,12 +33,10 @@ app.use('/api/workspaces', workspacesRoutes);
 app.use('/api/posts', postsRoutes);
 app.use('/api/vault', vaultRoutes);
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
