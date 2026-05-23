@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-// Generate dynamic follow-up questions using Gemini
+// Generate dynamic follow-up questions using Groq
 const generateFollowupQuestions = async (userQuery) => {
   try {
     const prompt = `You are a market research assistant. A user wants to validate an idea or find market demand.
@@ -16,22 +16,27 @@ Return ONLY a JSON array of 3 question strings. No preamble, no markdown, no exp
 Example: ["Who is your ideal customer?", "What problem are you trying to solve?", "Are you validating an idea or looking for new ones?"]`;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      'https://api.groq.com/openai/v1/chat/completions',
       {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { 
-          temperature: 0.7, 
-          maxOutputTokens: 300,
-          responseMimeType: "application/json"
-        }
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 300,
+        temperature: 0.7
       },
-      { timeout: 15000 }
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000
+      }
     );
 
-    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    return JSON.parse(text);
+    const text = response.data?.choices?.[0]?.message?.content || '[]';
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
   } catch (err) {
-    console.error('Gemini error:', err.message);
+    console.error('Groq error:', err.message);
     return [
       'Who is your target customer?',
       'What specific problem are you trying to solve?',
@@ -40,27 +45,31 @@ Example: ["Who is your ideal customer?", "What problem are you trying to solve?"
   }
 };
 
-// Generate the full research report using Gemini
+// Generate the full research report using Groq
 const generateReport = async (query, followupAnswers, scrapedData) => {
   const redditSummary = scrapedData.reddit
     .slice(0, 15)
     .map(p => `[r/${p.subreddit}] "${p.title}" (${p.upvotes} upvotes) - ${p.body?.slice(0, 200)}`)
-    .join('\n');
+    .join('
+');
 
   const webSummary = scrapedData.web
     .slice(0, 8)
     .map(p => `[${p.source}] "${p.title}" - ${p.snippet}`)
-    .join('\n');
+    .join('
+');
 
   const twitterSummary = scrapedData.twitter
     .slice(0, 5)
     .map(p => `[Twitter] "${p.title}" - ${p.snippet}`)
-    .join('\n');
+    .join('
+');
 
   const competitorSummary = scrapedData.competitors
     .slice(0, 5)
     .map(p => `"${p.title}" - ${p.snippet} (${p.url})`)
-    .join('\n');
+    .join('
+');
 
   const prompt = `You are an expert market research analyst. Analyze the following data and generate a comprehensive market research report.
 
@@ -106,27 +115,32 @@ Generate a detailed JSON report with this exact structure (return ONLY valid JSO
 
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      'https://api.groq.com/openai/v1/chat/completions',
       {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { 
-          temperature: 0.3, 
-          maxOutputTokens: 8192,
-          responseMimeType: "application/json"
-        }
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 8192,
+        temperature: 0.3
       },
-      { timeout: 60000 }
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 60000
+      }
     );
 
-    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    return JSON.parse(text);
+    const text = response.data?.choices?.[0]?.message?.content || '{}';
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
   } catch (err) {
-    console.error('Gemini error:', err.message);
+    console.error('Groq error:', err.message);
     throw new Error('Failed to generate report');
   }
 };
 
-// Generate social media posts using Gemini
+// Generate social media posts using Groq
 const generatePosts = async (reportData, query) => {
   const prompt = `You are a social media content expert. Generate 4 posts in this exact JSON format:
 {
@@ -138,27 +152,31 @@ const generatePosts = async (reportData, query) => {
 
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      'https://api.groq.com/openai/v1/chat/completions',
       {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { 
-          temperature: 0.8, 
-          maxOutputTokens: 2000,
-          responseMimeType: "application/json"
-        }
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2000,
+        temperature: 0.8
       },
-      { timeout: 30000 }
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      }
     );
 
-    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    return JSON.parse(text);
+    const text = response.data?.choices?.[0]?.message?.content || '{}';
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
   } catch (err) {
-    console.error('Gemini error:', err.message);
     throw new Error('Failed to generate posts');
   }
 };
 
-// Ask the Data - chat with report using Gemini
+// Ask the Data using Groq
 const askReport = async (question, reportData) => {
   const prompt = `You are an AI analyst. Answer the question using ONLY the data in the report. Be concise.
 
@@ -168,20 +186,24 @@ Answer in 2-4 sentences maximum.`;
 
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      'https://api.groq.com/openai/v1/chat/completions',
       {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { 
-          temperature: 0.4, 
-          maxOutputTokens: 500 
-        }
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+        temperature: 0.3
       },
-      { timeout: 20000 }
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 20000
+      }
     );
 
-    return response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Unable to answer that question.';
+    return response.data?.choices?.[0]?.message?.content || 'Unable to answer that question.';
   } catch (err) {
-    console.error('Gemini error:', err.message);
     throw new Error('Failed to process question');
   }
 };
