@@ -16,17 +16,20 @@ Return ONLY a JSON array of 3 question strings. No preamble, no markdown, no exp
 Example: ["Who is your ideal customer?", "What problem are you trying to solve?", "Are you validating an idea or looking for new ones?"]`;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 300 }
+        generationConfig: { 
+          temperature: 0.7, 
+          maxOutputTokens: 300,
+          responseMimeType: "application/json"
+        }
       },
       { timeout: 15000 }
     );
 
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    return JSON.parse(text);
   } catch (err) {
     console.error('Gemini error:', err.message);
     return [
@@ -103,17 +106,20 @@ Generate a detailed JSON report with this exact structure (return ONLY valid JSO
 
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+        generationConfig: { 
+          temperature: 0.3, 
+          maxOutputTokens: 8192,
+          responseMimeType: "application/json"
+        }
       },
       { timeout: 60000 }
     );
 
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    return JSON.parse(text);
   } catch (err) {
     console.error('Gemini error:', err.message);
     throw new Error('Failed to generate report');
@@ -132,23 +138,27 @@ const generatePosts = async (reportData, query) => {
 
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.8, maxOutputTokens: 2000 }
+        generationConfig: { 
+          temperature: 0.8, 
+          maxOutputTokens: 2000,
+          responseMimeType: "application/json"
+        }
       },
       { timeout: 30000 }
     );
 
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    return JSON.parse(text);
   } catch (err) {
+    console.error('Gemini error:', err.message);
     throw new Error('Failed to generate posts');
   }
 };
 
-// Ask the Data using Gemini
+// Ask the Data - chat with report using Gemini
 const askReport = async (question, reportData) => {
   const prompt = `You are an AI analyst. Answer the question using ONLY the data in the report. Be concise.
 
@@ -158,16 +168,20 @@ Answer in 2-4 sentences maximum.`;
 
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 500 }
+        generationConfig: { 
+          temperature: 0.4, 
+          maxOutputTokens: 500 
+        }
       },
       { timeout: 20000 }
     );
 
     return response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Unable to answer that question.';
   } catch (err) {
+    console.error('Gemini error:', err.message);
     throw new Error('Failed to process question');
   }
 };
