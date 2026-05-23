@@ -1,6 +1,5 @@
 const supabase = require('../lib/supabase');
 
-// Verifies the user's JWT token from Supabase
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -17,22 +16,60 @@ const authenticate = async (req, res, next) => {
 
     req.authUser = user;
 
-    // Fetch internal user record
-    const { data: internalUser } = await supabase
+    // Try to find user by auth_id first
+    let { data: internalUser } = await supabase
       .from('users')
       .select('*')
       .eq('auth_id', user.id)
       .single();
 
+    // If not found by auth_id try by email
+    if (!internalUser) {
+      const { data: userByEmail } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+      internalUser = userByEmail;
+    }
+
+    // If still not found create them now
+    if (!internalUser) {
+      const { data: newUser } = await supabase
+        .from('users')
+        .insert({
+          auth_id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+          avatar_url: user.user_metadata?.avatar_url || null
+        })
+        .select()
+        .single();
+      internalUser = newUser;
+
+      if (internalUser) {
+        await supabase.from('user_workflow_state').insert({
+          user_id: internalUser.id,
+          has_signed_up: true,
+          has_paid: false,
+          signup_completed_at: new Date().toISOString()
+        });
+        await supabase.from('subscriptions').insert({
+          user_id: internalUser.id,
+          plan: 'free',
+          status: 'inactive'
+        });
+      }
+    }
+
     req.user = internalUser;
     next();
   } catch (err) {
+    console.error('Auth middleware error:', err);
     return res.status(500).json({ error: 'Auth error' });
   }
 };
 
-// Gate: checks every step of the user workflow
-// Blocks access to dashboard if user hasn't paid
 const requirePaid = async (req, res, next) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -58,7 +95,6 @@ const requirePaid = async (req, res, next) => {
   }
 };
 
-// Check report limits based on plan
 const checkReportLimit = async (req, res, next) => {
   try {
     const { data: subscription } = await supabase
@@ -68,7 +104,7 @@ const checkReportLimit = async (req, res, next) => {
       .single();
 
     const plan = subscription?.plan || 'free';
-    const limits = { free: 3, pro: 30, builder: Infinity };
+    const limits = { free: 3, pro: 30, builder: 100 };
     const limit = limits[plan];
 
     const now = new Date();
@@ -82,7 +118,7 @@ const checkReportLimit = async (req, res, next) => {
 
     const currentCount = usage?.report_count || 0;
 
-    if (currentCount >= limit) {
+    if (limit !== Infinity && currentCount >= limit) {
       return res.status(403).json({
         error: 'Report limit reached',
         code: 'LIMIT_REACHED',
