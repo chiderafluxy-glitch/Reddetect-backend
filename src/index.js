@@ -17,11 +17,14 @@ app.use(cors({
   credentials: true
 }));
 
-// Stripe webhook needs raw body BEFORE express.json()
-app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
-
-// JSON body parser for all other routes
-app.use(express.json());
+// Body parser - conditional for webhook
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    express.raw({ type: 'application/json' })(req, res, next);
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', app: 'Reddetect API' }));
