@@ -28,18 +28,42 @@ router.post('/sync-user', authenticate, async (req, res) => {
     }
 
     // Create new user record
-    const { data: newUser, error: userError } = await supabase
-      .from('users')
-      .insert({
-        auth_id: authUser.id,
-        email: authUser.email,
-        full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
-        avatar_url: authUser.user_metadata?.avatar_url || null
-      })
-      .select()
-      .single();
-
-    if (userError) throw userError;
+    let newUser;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          auth_id: authUser.id,
+          email: authUser.email,
+          full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
+          avatar_url: authUser.user_metadata?.avatar_url || null
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      newUser = data;
+    } catch (err) {
+      // If duplicate error (23505), fetch existing user
+      if (err.code === '23505') {
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('*')
+          .eq('auth_id', authUser.id)
+          .single();
+        
+        if (existingUser) {
+          const { data: state } = await supabase
+            .from('user_workflow_state')
+            .select('*')
+            .eq('user_id', existingUser.id)
+            .single();
+          
+          return res.json({ user: existingUser, workflowState: state });
+        }
+      }
+      throw err;
+    }
 
     // Create workflow state tracking record
     const { data: workflowState } = await supabase
