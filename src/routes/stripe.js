@@ -39,8 +39,7 @@ router.post('/create-checkout', authenticate, async (req, res) => {
 });
 
 // Stripe webhook - handles payment events
-// IMPORTANT: This route needs raw body, handled in index.js
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
 
   let event;
