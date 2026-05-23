@@ -13,6 +13,9 @@ const PLAN_MAP = {
 router.post('/create-checkout', authenticate, async (req, res) => {
   try {
     const { priceId } = req.body;
+    console.log('Price ID received:', priceId);
+    console.log('Pro price ID from env:', process.env.STRIPE_PRO_PRICE_ID);
+    console.log('Builder price ID from env:', process.env.STRIPE_BUILDER_PRICE_ID);
 
     if (!priceId || !PLAN_MAP[priceId]) {
       return res.status(400).json({ error: 'Invalid price ID' });
